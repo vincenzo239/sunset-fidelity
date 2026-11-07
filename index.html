@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090909">
+  <meta name="description" content="La tua carta fedeltà digitale SUNSET ITALIAN COFFEE">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <title>SUNSET FIDELITY</title>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brandmark">SUNSET<span>ITALIAN COFFEE</span></div>
+    <button id="logoutBtn" class="quiet hidden">Esci</button>
+  </header>
+
+  <main class="wrap">
+    <section id="authView" class="panel auth-panel">
+      <p class="eyebrow">SUNSET ITALIAN COFFEE</p>
+      <h1>La tua fedeltà,<br><em>in un'unica tessera.</em></h1>
+      <div class="tabs">
+        <button class="tab active" data-auth-tab="login">Accedi</button>
+        <button class="tab" data-auth-tab="signup">Registrati</button>
+      </div>
+      <form id="loginForm" class="stack">
+        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required minlength="6"></label>
+        <button class="primary" type="submit">Accedi</button>
+      </form>
+      <form id="signupForm" class="stack hidden">
+        <label>Nome e cognome<input name="full_name" autocomplete="name" required maxlength="80"></label>
+        <label>Nome da mostrare sulla tessera <small>(facoltativo)</small><input name="display_name" maxlength="40" placeholder="Come vuoi essere chiamato"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="new-password" required minlength="8"></label>
+        <button class="primary" type="submit">Crea la mia tessera</button>
+      </form>
+      <p id="authMessage" class="message" aria-live="polite"></p>
+    </section>
+
+    <section id="customerView" class="hidden">
+      <div class="welcome"><div><p class="eyebrow">BENVENUTO/A</p><h1 id="welcomeName">La tua tessera</h1></div><button id="editCardBtn" class="outline">Personalizza</button></div>
+      <article class="loyalty-card" id="loyaltyCard">
+        <div class="card-top"><span class="card-brand">SUNSET</span><span class="card-chip">FIDELITY</span></div>
+        <p class="card-subtitle">ITALIAN COFFEE</p>
+        <div class="points-block"><strong id="pointsBalance">0</strong><span>PUNTI</span></div>
+        <div class="card-bottom"><span id="cardName">CLIENTE</span><span>MEMBER</span></div>
+      </article>
+      <div class="grid-two">
+        <section class="panel qr-panel"><h2>Il tuo QR personale</h2><div id="qrcode" class="qrbox"></div><p class="muted">Mostralo al banco per accumulare o utilizzare i punti.</p></section>
+        <section class="panel"><h2>La tua tessera</h2><p class="muted">Ogni QR è personale e collegato al tuo account.</p><button id="historyBtn" class="outline full">Movimenti punti</button><button id="rewardsBtn" class="outline full">Premi disponibili</button></section>
+      </div>
+      <section id="detailsPanel" class="panel hidden"><div class="section-heading"><h2 id="detailsTitle">Dettagli</h2><button id="closeDetails" class="quiet">Chiudi</button></div><div id="detailsContent"></div></section>
+    </section>
+
+    <section id="adminView" class="hidden">
+      <div class="welcome"><div><p class="eyebrow">AREA RISERVATA</p><h1>Gestione SUNSET</h1></div><span class="admin-tag">ADMIN</span></div>
+      <section class="panel">
+        <h2>Trova cliente</h2>
+        <div class="inline-form"><input id="customerSearch" placeholder="Email o nome cliente"><button id="searchCustomerBtn" class="primary">Cerca</button></div>
+        <div class="inline-form"><button id="scanToggleBtn" class="outline">Scansiona QR</button></div>
+        <div id="reader" class="scanner hidden"></div>
+        <div id="adminCustomer" class="hidden admin-customer">
+          <h3 id="adminCustomerName"></h3><p id="adminCustomerEmail" class="muted"></p>
+          <p>Saldo: <strong id="adminCustomerBalance">0</strong> punti</p>
+          <label>Importo in euro<input id="purchaseAmount" type="number" min="0.01" step="0.01" placeholder="es. 4,50"></label>
+          <button id="creditBtn" class="primary full">Accredita punti in base alla spesa</button>
+          <div class="inline-form"><input id="manualPoints" type="number" step="1" placeholder="Punti da aggiungere"><button id="manualCreditBtn" class="outline">Aggiungi</button></div>
+          <div class="inline-form"><input id="debitPoints" type="number" step="1" min="1" placeholder="Punti da scalare"><button id="debitBtn" class="outline">Scala punti</button></div>
+        </div>
+        <p id="adminMessage" class="message" aria-live="polite"></p>
+      </section>
+      <div class="grid-two">
+        <section class="panel">
+          <h2>Impostazioni punti</h2>
+          <label>Punti per euro<input id="pointsPerEuro" type="number" min="0" step="0.1"></label>
+          <label>Arrotondamento<select id="rounding"><option value="floor">Per difetto</option><option value="round">Matematico</option><option value="ceil">Per eccesso</option></select></label>
+          <button id="saveSettingsBtn" class="primary full">Salva impostazioni</button>
+        </section>
+        <section class="panel">
+          <h2>Nuovo premio</h2>
+          <label>Nome premio<input id="rewardName" maxlength="80" placeholder="es. Caffè omaggio"></label>
+          <label>Punti necessari<input id="rewardCost" type="number" min="1" step="1"></label>
+          <label>Descrizione<input id="rewardDescription" maxlength="180" placeholder="Descrizione facoltativa"></label>
+          <button id="createRewardBtn" class="primary full">Aggiungi premio</button>
+        </section>
+      </div>
+      <section class="panel"><h2>Premi configurati</h2><div id="adminRewards"></div></section>
+    </section>
+  </main>
+
+  <footer><span>SUNSET ITALIAN COFFEE</span><span>FIDELITY PROGRAM</span></footer>
+  <dialog id="cardDialog">
+    <form id="cardForm" method="dialog" class="stack">
+      <div class="section-heading"><h2>Personalizza tessera</h2><button type="button" id="cancelCard" class="quiet">Chiudi</button></div>
+      <label>Nome sulla tessera<input name="display_name" maxlength="40" required></label>
+      <label>Colore tessera<select name="card_color"><option value="ember">Sunset ember</option><option value="midnight">Midnight</option><option value="olive">Olive</option><option value="sand">Sand</option></select></label>
+      <button class="primary" type="submit">Salva personalizzazione</button>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
