@@ -7,7 +7,7 @@ const msg=(id,text)=>$(id).textContent=text||"";
 let supabase=null,user=null,profile=null,activeCustomer=null,scanner=null;
 const moneyPoints=(amount,rate,rounding)=>{const v=Number(amount)*Number(rate);return rounding==="ceil"?Math.ceil(v):rounding==="round"?Math.round(v):Math.floor(v)};
 function client(){if(!window.supabase||!cfg.SUPABASE_URL||cfg.SUPABASE_URL.includes("INCOLLA_")||!cfg.SUPABASE_PUBLISHABLE_KEY||cfg.SUPABASE_PUBLISHABLE_KEY.includes("INCOLLA_"))throw Error("Configurazione Supabase non completata. Segui il file LEGGIMI.");return window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_PUBLISHABLE_KEY)}
-function setView(which){["authView","customerView","adminView"].forEach(id=>show(id,id===which));show("logoutBtn",!!user)}
+function setView(which){["authView","customerView","adminView"].forEach(id=>show(id,id===which));show("logoutBtn",!!user);show("goToCustomerBtn",!!user&&profile?.role==="admin"&&which==="adminView");show("backToAdminBtn",!!user&&profile?.role==="admin"&&which==="customerView")}
 function authTab(tab){document.querySelectorAll("[data-auth-tab]").forEach(b=>b.classList.toggle("active",b.dataset.authTab===tab));show("loginForm",tab==="login");show("signupForm",tab==="signup");msg("authMessage","")}
 document.querySelectorAll("[data-auth-tab]").forEach(b=>b.addEventListener("click",()=>authTab(b.dataset.authTab)));
 $("loginForm").addEventListener("submit",async e=>{e.preventDefault();try{const f=new FormData(e.target);msg("authMessage","Accesso in corso…");const {error}=await supabase.auth.signInWithPassword({email:f.get("email"),password:f.get("password")});if(error)throw error;await refresh()}catch(err){msg("authMessage",err.message)}});
