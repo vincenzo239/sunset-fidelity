@@ -64,8 +64,22 @@
         <div class="inline-form"><button id="scanToggleBtn" class="outline">Scansiona QR</button></div>
         <div id="reader" class="scanner hidden"></div>
         <div id="adminCustomer" class="hidden admin-customer">
-          <h3 id="adminCustomerName"></h3><p id="adminCustomerEmail"class="muted"></p>
-          <p>Saldo: <strong id="adminCustomerBalance">0</strong> punti</p>
+         <article class="loyalty-card" id="adminLoyaltyCard">
+  <div class="card-top">
+    <img class="card-brand" src="assets/logo%20sunset%20.jpeg" alt="SUNSET ITALIAN COFFEE">
+    <span class="card-chip">FIDELITY</span>
+  </div>
+  <p class="card-subtitle">ITALIAN COFFEE</p>
+  <div class="points-block">
+    <strong id="adminCustomerBalance">0</strong>
+    <span>PUNTI</span>
+  </div>
+  <div class="card-bottom">
+    <span id="adminCustomerName">CLIENTE</span>
+    <span>MEMBER</span>
+  </div>
+  <p id="adminCustomerEmail" class="muted"></p>
+</article
           <label>Importo in euro<input id="purchaseAmount" type="number" min="0.01" step="0.01" placeholder="es. 4,50"></label>
           <button id="creditBtn" class="primary full">Accredita punti in base alla spesa</button>
           <div class="inline-form"><input id="manualPoints" type="number" step="1" placeholder="Punti da aggiungere"><button id="manualCreditBtn" class="outline">Aggiungi</button></div>
