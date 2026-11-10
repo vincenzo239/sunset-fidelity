@@ -82,10 +82,19 @@
   </div>
   <p id="adminCustomerEmail" class="muted"></p>
          </article>
-          <label>Importo in euro<input id="purchaseAmount" type="number" min="0.01" step="0.01" placeholder="es. 4,50"></label>
-          <button id="creditBtn" class="primary full">Accredita punti in base alla spesa</button>
-         
-          <div class="inline-form"><input id="debitPoints" type="number" step="1" min="1" placeholder="Punti da scalare"><button id="debitBtn" class="outline">Scala punti</button></div>
+        <div class="operations-grid">
+  <div class="operation-box">
+    <label>Importo in euro
+      <input id="purchaseAmount" type="number" min="0.01" step="0.01" placeholder="es. 4,50">
+    </label>
+    <button id="creditBtn" class="primary full">Accredita punti in base alla spesa</button>
+  </div>
+
+  <div class="operation-box">
+    <input id="debitPoints" type="number" step="1" min="1" placeholder="Punti da scalare">
+    <button id="debitBtn" class="outline full">Scala punti</button>
+  </div>
+</div>
         </div>
         <p id="adminMessage" class="message" aria-live="polite"></p>
       </section>
