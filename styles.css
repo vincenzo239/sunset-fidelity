@@ -17,19 +17,23 @@
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  height: 100%;
+}
+
+.operation-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 62px;
 }
 
 .operation-box input {
   width: 100%;
   box-sizing: border-box;
+  height: 44px;
 }
 
 .operation-box button {
   width: 100%;
-}
-
-@media (max-width: 480px) {
-  .operations-grid {
-    gap: 8px;
-  }
+  min-height: 44px;
 }
