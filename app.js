@@ -36,7 +36,7 @@ show("adminCustomer");
 }
 $("searchCustomerBtn").addEventListener("click",async()=>{try{await findCustomer($("customerSearch").value);msg("adminMessage","Cliente selezionato.")}catch(e){show("adminCustomer",false);msg("adminMessage",e.message)}});
 $("creditBtn").addEventListener("click",async()=>{try{const euros=Number($("purchaseAmount").value);if(!(euros>0))throw Error("Inserisci un importo valido.");const {data:s,error:se}=await supabase.from("loyalty_settings").select("*").eq("id",1).single();if(se)throw se;const pts=moneyPoints(euros,s.points_per_euro,s.rounding);if(pts<1)throw Error("La spesa non genera punti con le impostazioni attuali.");const {error}=await supabase.rpc("admin_add_points",{p_user_id:activeCustomer.id,p_points:pts,p_reason:`Acquisto €${euros.toFixed(2)}`});if(error)throw error;await selectCustomer(activeCustomer);$("purchaseAmount").value="";msg("adminMessage",`Accreditati ${pts} punti.`)}catch(e){msg("adminMessage",e.message)}});
-$("manualCreditBtn").addEventListener("click",()=>adjustPoints("admin_add_points",Number($("manualPoints").value),"Accredito manuale","manualPoints"));
+
 $("debitBtn").addEventListener("click",()=>adjustPoints("admin_remove_points",Number($("debitPoints").value),"Storno manuale","debitPoints"));
 
   async function adjustPoints(fn,pts,reason,input){try{if(!Number.isInteger(pts)||pts<1)throw Error("Inserisci un numero di punti valido.");const args={p_user_id:activeCustomer.id,p_points:pts,p_reason:reason};const {error}=await supabase.rpc(fn,args);if(error)throw error;await selectCustomer(activeCustomer);$(input).value="";msg("adminMessage","Operazione completata.")}catch(e){msg("adminMessage",e.message)}}
