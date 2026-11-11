@@ -29,3 +29,17 @@ Non promuovere altri utenti. Esci e rientra nell'app.
 - Prima dell'uso reale, testare con account di prova e verificare le regole commerciali desiderate.
 - In questa prima versione il riscatto effettivo dei premi al banco va completato con una procedura di conferma amministratore: il saldo viene protetto lato server e non può andare sotto zero, ma non è ancora implementato il flusso completo di prenotazione/riscatto con ricevuta.
 - Non inserire dati personali non necessari. Conservare le credenziali in modo sicuro.
+
+
+## Notifiche push per punti accreditati
+Le notifiche richiedono HTTPS e l’autorizzazione esplicita del cliente dal pulsante **Attiva notifiche punti**. Su iPhone/iPad la PWA deve essere aggiunta alla schermata Home; il supporto push è disponibile da iOS/iPadOS 16.4.
+
+### Configurazione da fare nel progetto Supabase
+1. In **SQL Editor**, esegui `supabase/push_notifications.sql` una volta.
+2. Genera una coppia di chiavi VAPID. La chiave pubblica è identificativa e può stare nella configurazione client; la privata è un segreto e va conservata solo nei secrets Supabase. Non aggiungere la privata a GitHub o inviarla in chat.
+3. In **Project Settings → Edge Functions → Secrets** (o tramite Supabase CLI), configura `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (un URI mailto o HTTPS di contatto).
+4. Imposta la stessa chiave pubblica VAPID in `config.js` al posto di `INCOLLA_QUI_LA_CHIAVE_PUBBLICA_VAPID`.
+5. Pubblica la Edge Function `send-points-notification` dal percorso `supabase/functions/send-points-notification/index.ts` nel progetto Supabase e abilita la verifica JWT della funzione. La service role key resta solo nei secrets gestiti da Supabase.
+6. Pubblica i file del branch su GitHub Pages. Poi accedi come cliente e attiva le notifiche sul dispositivo.
+
+L’accredito viene eseguito prima tramite la RPC esistente. Solo quando la RPC ha successo il client invoca la Edge Function; quest’ultima verifica il ruolo admin, controlla un accredito recente nel ledger e ricalcola il saldo sul server. Se l’invio fallisce, l’accredito resta valido e l’area admin mostra un avviso.
