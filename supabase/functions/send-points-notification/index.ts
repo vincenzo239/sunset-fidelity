@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import webpush from "npm:web-push";
+import { sendNotification, setVapidDetails } from "npm:web-push@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,7 +69,7 @@ Deno.serve(async (request: Request) => {
       .from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", userId);
     if (subscriptionsError) throw subscriptionsError;
 
-    webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+    setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
     const payload = JSON.stringify({
       title: "Punti accreditati!",
       body: `Hai ricevuto ${points} punti. Il tuo nuovo saldo è di ${balance} punti.`,
@@ -80,7 +80,7 @@ Deno.serve(async (request: Request) => {
     const expiredIds: string[] = [];
     for (const subscription of subscriptions || []) {
       try {
-        await webpush.sendNotification({
+        await sendNotification({
           endpoint: subscription.endpoint,
           keys: { p256dh: subscription.p256dh, auth: subscription.auth },
         }, payload);
