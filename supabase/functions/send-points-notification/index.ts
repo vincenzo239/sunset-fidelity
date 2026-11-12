@@ -39,6 +39,21 @@ Deno.serve(async (request: Request) => {
     if (profileError || adminProfile?.role !== "admin") return json({ error: "Operazione riservata all’amministratore." }, 403);
 
     const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return json({ error: "Richiesta non valida." }, 400);
+    }
+
+    if (body.action === "broadcast") {
+      const title = typeof body.title === "string" ? body.title.trim() : "";
+      const message = typeof body.message === "string" ? body.message.trim() : "";
+      if (!title || title.length > 60 || !message || message.length > 240) {
+        return json({ error: "Titolo o messaggio non validi." }, 400);
+      }
+      setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+      const result = await sendBroadcastToCustomers(adminClient, title, message);
+      return json({ ok: true, ...result }, 200);
+    }
+
     const userId = typeof body.user_id === "string" ? body.user_id : "";
     const points = Number(body.points);
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)
@@ -101,6 +116,73 @@ Deno.serve(async (request: Request) => {
     return json({ error: "Errore durante l’invio della notifica." }, 500);
   }
 });
+
+async function sendBroadcastToCustomers(
+  adminClient: ReturnType<typeof createClient>,
+  title: string,
+  message: string,
+) {
+  const customerIds: string[] = [];
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await adminClient
+      .from("profiles")
+      .select("id")
+      .eq("role", "customer")
+      .range(from, from + 499);
+    if (error) throw error;
+    const page = data || [];
+    customerIds.push(...page.map((profile) => profile.id));
+    if (page.length < 500) break;
+  }
+
+  let sent = 0;
+  let failed = 0;
+  let total = 0;
+  const expiredIds: string[] = [];
+  const payload = JSON.stringify({
+    title,
+    body: message,
+    url: "./",
+    tag: `sunset-announcement-${crypto.randomUUID()}`,
+  });
+
+  for (let offset = 0; offset < customerIds.length; offset += 100) {
+    const customerBatch = customerIds.slice(offset, offset + 100);
+    for (let from = 0; ; from += 500) {
+      const { data, error } = await adminClient
+        .from("push_subscriptions")
+        .select("id, endpoint, p256dh, auth")
+        .in("user_id", customerBatch)
+        .range(from, from + 499);
+      if (error) throw error;
+      const subscriptions = data || [];
+      total += subscriptions.length;
+
+      await Promise.all(subscriptions.map(async (subscription) => {
+        try {
+          await sendNotification({
+            endpoint: subscription.endpoint,
+            keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+          }, payload);
+          sent++;
+        } catch (error) {
+          const statusCode = (error as { statusCode?: number }).statusCode;
+          failed++;
+          if (statusCode === 404 || statusCode === 410) expiredIds.push(subscription.id);
+          else console.error("Invio comunicazione non riuscito:", statusCode || "errore");
+        }
+      }));
+
+      if (subscriptions.length < 500) break;
+    }
+  }
+
+  if (expiredIds.length) {
+    const { error } = await adminClient.from("push_subscriptions").delete().in("id", expiredIds);
+    if (error) console.error("Pulizia subscription scadute non riuscita.");
+  }
+  return { sent, failed, total, customers: customerIds.length };
+}
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
