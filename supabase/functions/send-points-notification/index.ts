@@ -158,20 +158,23 @@ async function sendBroadcastToCustomers(
       const subscriptions = data || [];
       total += subscriptions.length;
 
-      await Promise.all(subscriptions.map(async (subscription) => {
-        try {
-          await sendNotification({
-            endpoint: subscription.endpoint,
-            keys: { p256dh: subscription.p256dh, auth: subscription.auth },
-          }, payload);
-          sent++;
-        } catch (error) {
-          const statusCode = (error as { statusCode?: number }).statusCode;
-          failed++;
-          if (statusCode === 404 || statusCode === 410) expiredIds.push(subscription.id);
-          else console.error("Invio comunicazione non riuscito:", statusCode || "errore");
-        }
-      }));
+      for (let batchStart = 0; batchStart < subscriptions.length; batchStart += 25) {
+        const sendBatch = subscriptions.slice(batchStart, batchStart + 25);
+        await Promise.all(sendBatch.map(async (subscription) => {
+          try {
+            await sendNotification({
+              endpoint: subscription.endpoint,
+              keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+            }, payload);
+            sent++;
+          } catch (error) {
+            const statusCode = (error as { statusCode?: number }).statusCode;
+            failed++;
+            if (statusCode === 404 || statusCode === 410) expiredIds.push(subscription.id);
+            else console.error("Invio comunicazione non riuscito:", statusCode || "errore");
+          }
+        }));
+      }
 
       if (subscriptions.length < 500) break;
     }
