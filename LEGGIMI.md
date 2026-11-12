@@ -43,3 +43,6 @@ Le notifiche richiedono HTTPS e l’autorizzazione esplicita del cliente dal pul
 6. Pubblica i file del branch su GitHub Pages. Poi accedi come cliente e attiva le notifiche sul dispositivo.
 
 L’accredito viene eseguito prima tramite la RPC esistente. Solo quando la RPC ha successo il client invoca la Edge Function; quest’ultima verifica il ruolo admin, controlla un accredito recente nel ledger e ricalcola il saldo sul server. Se l’invio fallisce, l’accredito resta valido e l’area admin mostra un avviso.
+
+### Comunicazioni a tutti i clienti
+Nel pannello amministratore si può preparare un titolo (massimo 60 caratteri) e un messaggio (massimo 240 caratteri). Prima dell’invio l’app chiede conferma; la notifica raggiunge i dispositivi dei clienti con notifiche attive. Non serve una nuova tabella SQL: il codice aggiornato della funzione `rapid-handler` gestisce sia gli avvisi sia le notifiche degli accrediti. Per rendere disponibile l’invio nel progetto, dopo aver terminato le modifiche, pubblica la versione aggiornata della Edge Function da `supabase/functions/send-points-notification/index.ts`.
