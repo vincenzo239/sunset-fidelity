@@ -43,6 +43,45 @@ $("creditBtn").addEventListener("click",async()=>{try{const euros=Number($("purc
 
 $("debitBtn").addEventListener("click",()=>adjustPoints("admin_remove_points",Number($("debitPoints").value),"Storno manuale","debitPoints"));
 
+$("broadcastBtn").addEventListener("click", async () => {
+  const button = $("broadcastBtn");
+  const title = $("broadcastTitle").value.trim();
+  const message = $("broadcastMessageInput").value.trim();
+  if (!title || title.length > 60 || !message || message.length > 240) {
+    msg("broadcastStatus", "Inserisci un titolo e un messaggio (massimo 60 e 240 caratteri).");
+    return;
+  }
+  const confirmed = window.confirm(
+    `L’avviso verrà inviato a tutti i clienti che hanno attivato le notifiche.\n\n${title}\n${message}\n\nVuoi procedere?`
+  );
+  if (!confirmed) return;
+
+  button.disabled = true;
+  msg("broadcastStatus", "Invio dell’avviso in corso…");
+  try {
+    const { data, error } = await supabase.functions.invoke("rapid-handler", {
+      body: { action: "broadcast", title, message },
+    });
+    if (error) throw error;
+    if (!data?.ok) throw Error(data?.error || "Invio non riuscito.");
+    if (!data.total) {
+      msg("broadcastStatus", "Nessun cliente ha attivato le notifiche.");
+    } else {
+      const sent = Number(data.sent) || 0;
+      const failed = Number(data.failed) || 0;
+      msg("broadcastStatus", failed
+        ? `Inviate ${sent} notifiche; ${failed} dispositivi non le hanno ricevute.`
+        : `Avviso inviato a ${sent} dispositivi dei clienti.`);
+    }
+    $("broadcastTitle").value = "";
+    $("broadcastMessageInput").value = "";
+  } catch (error) {
+    msg("broadcastStatus", error instanceof Error ? error.message : "Non è stato possibile inviare l’avviso.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
   async function adjustPoints(fn,pts,reason,input){try{if(!Number.isInteger(pts)||pts<1)throw Error("Inserisci un numero di punti valido.");const args={p_user_id:activeCustomer.id,p_points:pts,p_reason:reason};const {error}=await supabase.rpc(fn,args);if(error)throw error;await selectCustomer(activeCustomer);$(input).value="";msg("adminMessage","Operazione completata.")}catch(e){msg("adminMessage",e.message)}}
 $("scanToggleBtn").addEventListener("click",async()=>{try{if(scanner){await scanner.stop();scanner.clear();scanner=null;show("reader",false);$("scanToggleBtn").textContent="Scansiona QR";return}if(!window.Html5Qrcode)throw Error("Lettore QR non disponibile.");show("reader");scanner=new Html5Qrcode("reader");$("scanToggleBtn").textContent="Ferma scansione";await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:220,height:220}},async decoded=>{try{await scanner.stop();scanner.clear();scanner=null;show("reader",false);$("scanToggleBtn").textContent="Scansiona QR";await findById(decoded);msg("adminMessage","QR cliente riconosciuto.")}catch(e){msg("adminMessage",e.message)}},()=>{})}catch(e){msg("adminMessage",e.message)}});
 function escapeHtml(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
