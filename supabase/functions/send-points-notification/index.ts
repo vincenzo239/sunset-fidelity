@@ -34,13 +34,36 @@ Deno.serve(async (request: Request) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: adminProfile, error: profileError } = await adminClient
+    const { data: callerProfile, error: profileError } = await adminClient
       .from("profiles").select("role").eq("id", user.id).maybeSingle();
-    if (profileError || adminProfile?.role !== "admin") return json({ error: "Operazione riservata all’amministratore." }, 403);
+    if (profileError || !callerProfile) return json({ error: "Profilo non trovato." }, 403);
 
     const body = await request.json();
     if (!body || typeof body !== "object" || Array.isArray(body)) {
       return json({ error: "Richiesta non valida." }, 400);
+    }
+
+    if (body.action === "welcome") {
+      if (callerProfile.role !== "customer") {
+        return json({ error: "Operazione riservata al cliente." }, 403);
+      }
+      setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
+      const result = await sendNotificationOnce(
+        adminClient,
+        user.id,
+        "welcome",
+        JSON.stringify({
+          title: "Benvenuto in SUNSET FIDELITY",
+          body: "La tua tessera è pronta: raccogli punti a ogni acquisto.",
+          url: "./",
+          tag: "sunset-welcome",
+        }),
+      );
+      return json({ ok: true, sent: result.sent }, 200);
+    }
+
+    if (callerProfile.role !== "admin") {
+      return json({ error: "Operazione riservata all’amministratore." }, 403);
     }
 
     if (body.action === "broadcast") {
@@ -80,20 +103,82 @@ Deno.serve(async (request: Request) => {
       .from("point_ledger").select("points").eq("user_id", userId);
     if (ledgerError) throw ledgerError;
     const balance = (ledger || []).reduce((sum, row) => sum + Number(row.points), 0);
-    const { data: subscriptions, error: subscriptionsError } = await adminClient
-      .from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("user_id", userId);
-    if (subscriptionsError) throw subscriptionsError;
+    const balanceBeforeCredit = balance - points;
+
+    let rewardNames: string[] = [];
+    const { data: newlyAvailableRewards, error: rewardsError } = await adminClient
+      .from("rewards")
+      .select("name, points_cost")
+      .eq("active", true)
+      .gt("points_cost", balanceBeforeCredit)
+      .lte("points_cost", balance)
+      .order("points_cost", { ascending: true });
+    if (rewardsError) {
+      console.error("Controllo traguardi non riuscito:", rewardsError.message);
+    } else {
+      rewardNames = (newlyAvailableRewards || []).map((reward) => reward.name);
+    }
+
+    let bodyText = `Hai ricevuto ${points} punti. Il tuo nuovo saldo è di ${balance} punti.`;
+    if (rewardNames.length === 1) {
+      bodyText += ` Ora puoi riscattare: ${rewardNames[0]}.`;
+    } else if (rewardNames.length > 1) {
+      const names = rewardNames.slice(0, 3).join(", ");
+      bodyText += ` Hai raggiunto un traguardo: ${names}${rewardNames.length > 3 ? " e altri premi" : ""}.`;
+    }
 
     setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
-    const payload = JSON.stringify({
-      title: "Punti accreditati!",
-      body: `Hai ricevuto ${points} punti. Il tuo nuovo saldo è di ${balance} punti.`,
-      url: "./",
-      tag: `sunset-credit-${confirmedCredit.id}`,
-    });
-    let sent = 0;
-    const expiredIds: string[] = [];
-    for (const subscription of subscriptions || []) {
+    const result = await sendNotificationOnce(
+      adminClient,
+      userId,
+      `credit:${confirmedCredit.id}`,
+      JSON.stringify({
+        title: rewardNames.length ? "Punti e premio disponibili!" : "Punti accreditati!",
+        body: bodyText,
+        url: "./",
+        tag: `sunset-credit-${confirmedCredit.id}`,
+      }),
+    );
+    return json({ ok: true, sent: result.sent, milestoneCount: rewardNames.length }, 200);
+  } catch (error) {
+    console.error("send-points-notification:", error instanceof Error ? error.message : "errore");
+    return json({ error: "Errore durante l’invio della notifica." }, 500);
+  }
+});
+
+async function sendNotificationOnce(
+  adminClient: ReturnType<typeof createClient>,
+  userId: string,
+  eventKey: string,
+  payload: string,
+) {
+  const { error: claimError } = await adminClient
+    .from("push_notification_deliveries")
+    .insert({ user_id: userId, event_key: eventKey });
+  if (claimError?.code === "23505") return { sent: 0, total: 0, duplicate: true };
+  if (claimError) throw claimError;
+
+  const { data: subscriptions, error: subscriptionsError } = await adminClient
+    .from("push_subscriptions")
+    .select("id, endpoint, p256dh, auth")
+    .eq("user_id", userId);
+  if (subscriptionsError) {
+    await adminClient.from("push_notification_deliveries").delete()
+      .eq("user_id", userId).eq("event_key", eventKey);
+    throw subscriptionsError;
+  }
+
+  const list = subscriptions || [];
+  if (!list.length) {
+    await adminClient.from("push_notification_deliveries").delete()
+      .eq("user_id", userId).eq("event_key", eventKey);
+    return { sent: 0, total: 0, duplicate: false };
+  }
+
+  let sent = 0;
+  const expiredIds: string[] = [];
+  for (let start = 0; start < list.length; start += 25) {
+    await Promise.all(list.slice(start, start + 25).map(async (subscription) => {
       try {
         await sendNotification({
           endpoint: subscription.endpoint,
@@ -105,17 +190,25 @@ Deno.serve(async (request: Request) => {
         if (statusCode === 404 || statusCode === 410) expiredIds.push(subscription.id);
         else console.error("Invio push non riuscito:", statusCode || "errore");
       }
-    }
-    if (expiredIds.length) {
-      const { error } = await adminClient.from("push_subscriptions").delete().in("id", expiredIds);
-      if (error) console.error("Pulizia subscription scadute non riuscita.");
-    }
-    return json({ ok: true, sent }, 200);
-  } catch (error) {
-    console.error("send-points-notification:", error instanceof Error ? error.message : "errore");
-    return json({ error: "Errore durante l’invio della notifica." }, 500);
+    }));
   }
-});
+
+  if (expiredIds.length) {
+    const { error } = await adminClient.from("push_subscriptions").delete().in("id", expiredIds);
+    if (error) console.error("Pulizia subscription scadute non riuscita.");
+  }
+
+  if (sent) {
+    const { error } = await adminClient.from("push_notification_deliveries")
+      .update({ sent_at: new Date().toISOString() })
+      .eq("user_id", userId).eq("event_key", eventKey);
+    if (error) console.error("Registrazione notifica non riuscita.");
+  } else {
+    await adminClient.from("push_notification_deliveries").delete()
+      .eq("user_id", userId).eq("event_key", eventKey);
+  }
+  return { sent, total: list.length, duplicate: false };
+}
 
 async function sendBroadcastToCustomers(
   adminClient: ReturnType<typeof createClient>,
