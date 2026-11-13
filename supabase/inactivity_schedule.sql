@@ -22,6 +22,7 @@ select cron.schedule(
     url := 'https://tsvtbephrfhrqkfpvodl.supabase.co/functions/v1/send-inactivity-notifications',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
+      'apikey', 'sb_publishable_WsYJSmprJsRKHdSGdri4sQ_cw_9Ia0l',
       'x-cron-secret', (
         select decrypted_secret
         from vault.decrypted_secrets
