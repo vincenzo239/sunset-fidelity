@@ -44,5 +44,12 @@ Le notifiche richiedono HTTPS e l’autorizzazione esplicita del cliente dal pul
 
 L’accredito viene eseguito prima tramite la RPC esistente. Solo quando la RPC ha successo il client invoca la Edge Function; quest’ultima verifica il ruolo admin, controlla un accredito recente nel ledger e ricalcola il saldo sul server. Se l’invio fallisce, l’accredito resta valido e l’area admin mostra un avviso.
 
+### Automazioni cliente
+- **Benvenuto:** inviata una volta quando il cliente attiva le notifiche.
+- **Traguardo:** la notifica dell’accredito segnala i premi attivi appena raggiungibili; non usa soglie arbitrarie. Se non ci sono premi attivi, non mostra un traguardo.
+- **Inattività:** una notifica dopo 7 giorni senza accrediti positivi, al massimo una per periodo di inattività. Il controllo è programmato una volta al giorno.
+
+Per il traguardo e il benvenuto, esegui una volta `supabase/push_automation.sql` prima di aggiornare la Edge Function `rapid-handler`. Per i promemoria di inattività, la nuova Edge Function è `supabase/functions/send-inactivity-notifications/index.ts`: imposta il secret `INACTIVITY_CRON_SECRET`, disattiva **Verify JWT** per questa funzione (l’endpoint controlla il secret personalizzato), e configura il job giornaliero usando `supabase/inactivity_schedule.sql`. Il secret generato in Vault va copiato nei Supabase Function Secrets senza condividerlo in chat o salvarlo su GitHub.
+
 ### Comunicazioni a tutti i clienti
 Nel pannello amministratore si può preparare un titolo (massimo 60 caratteri) e un messaggio (massimo 240 caratteri). Prima dell’invio l’app chiede conferma; la notifica raggiunge i dispositivi dei clienti con notifiche attive. Non serve una nuova tabella SQL: il codice aggiornato della funzione `rapid-handler` gestisce sia gli avvisi sia le notifiche degli accrediti. Per rendere disponibile l’invio nel progetto, dopo aver terminato le modifiche, pubblica la versione aggiornata della Edge Function da `supabase/functions/send-points-notification/index.ts`.
